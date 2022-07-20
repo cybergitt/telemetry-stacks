@@ -64,7 +64,7 @@ services:
       - /var/log:/var/log:ro
       - ./data/loki/index:/opt/loki/index
       - ./data/loki/chunks:/opt/loki/chunks
-    command: -config.file=/etc/loki/config/loki-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
     networks:
       - dev-network
 
@@ -75,7 +75,7 @@ services:
     volumes:
       - ./data/promtail/logs:/var/logs
       - ./config/promtail-config.yaml:/etc/promtail/config
-    command: -config.file=/etc/promtail/config/promtail-config.yaml
+    command: -config.file=/etc/promtail/config.yml
     networks:
       - dev-network
       
