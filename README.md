@@ -8,7 +8,7 @@ The stack includes the following:
 * **Jaeger** [[Docs](https://www.jaegertracing.io/docs/)] [[Local UI](http://localhost:16686/)] - Provides tracing data which is linked to each incoming server request
 * **Loki** [[Docs](https://grafana.com/docs/loki/latest/)] - Ingests logs which can be viewed and queried from within Grafana
 * **OpenTelemetry Collector** [[Docs](https://opentelemetry.io/docs/collector/)] - Collects metrics data from server and exports the data to Prometheus
-* **Zipkin** [[Docs] (https://zipkin.io/pages/quickstart)] - A distributed tracing system, it helps gather timing data needed to troubleshoot latency problems in service architectures
+* **Zipkin** [[Docs](https://zipkin.io/pages/quickstart)] - A distributed tracing system, it helps gather timing data needed to troubleshoot latency problems in service architectures
 * **Prometheus** [[Docs](https://prometheus.io/docs/)] [[Local UI](http://localhost:3001/)] - A monitoring toolkit for timeseries based metrics
 * **Vector** [[Docs](https://vector.dev/docs/)] - Transforms Docker logs and send them to Loki, as well as collecting logs from local Node.js processes if required
 
