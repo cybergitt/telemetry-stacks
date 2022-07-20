@@ -124,7 +124,7 @@ services:
       - ./config/otel-collector.yaml:/conf/otel-collector.config.yaml
     networks:
       - dev-network
-      
+
   # Tracing service
   zipkin-server:
     image: openzipkin/zipkin:latest
@@ -135,8 +135,8 @@ services:
     restart: 'unless-stopped'
     networks:
       - dev-network
-      
-   vector:
+
+  vector:
     image: timberio/vector:latest-alpine
     container_name: vector-telemetry-stacks
     restart: unless-stopped
