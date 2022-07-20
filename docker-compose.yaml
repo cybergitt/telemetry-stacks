@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    ports:
+      - published: 9102
+        target: 9102
+        mode: host
+    command:
+      - "--port=9102"
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--disable_metrics=percpu,sched,tcp,udp,disk,diskIO,accelerator,hugetlb,referenced_memory,cpu_topology,resctrl"
+    volumes:
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /sys:/sys:ro
+      - /var/run:/var/run:ro
+      - /:/rootfs:ro
+      - /sys/fs/cgroup:/cgroup:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /etc/localtime:/etc/localtime:ro
+    deploy:
+      mode: global
+      update_config:
+        order: stop-first
+      resources:
+        reservations:
+          memory: 80M
+    healthcheck:
+      test: wget --quiet --tries=1 --spider http://localhost:9102/healthz || exit 1
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+    privileged: true
+    networks:
+      - dev-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/monitoring.yaml:/etc/grafana/provisioning/datasources/monitoring.yaml
+      - ./dashboards:/etc/grafana/provisioning/dashboards
+      - ./data/grafana:/var/lib/grafana
+    networks:
+      - dev-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/local-config.yaml
+      - /var/log:/var/log:ro
+      - ./data/loki/index:/opt/loki/index
+      - ./data/loki/chunks:/opt/loki/chunks
+    command: -config.file=/etc/loki/config/loki-config.yaml
+    networks:
+      - dev-network
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./data/promtail/logs:/var/logs
+      - ./config/promtail-config.yaml:/etc/promtail/config
+    command: -config.file=/etc/promtail/config/promtail-config.yaml
+    networks:
+      - dev-network
+      
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    restart: unless-stopped
+    ports: 
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "14250:14250"
+      - "14269:14269"
+      - "16686:16686"
+    volumes:
+      - ./data/jaeger:/badger
+    mem_limit: 512m
+    environment:
+      - SPAN_STORAGE_TYPE=badger
+      - BADGER_EPHEMERAL=false
+      - BADGER_DIRECTORY_KEY=/badger/key
+      - BADGER_DIRECTORY_VALUE=/badger/data
+      - BADGER_SPAN_STORE_TTL=168h0m0s
+    networks:
+      - dev-network
+      
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    command: --config.file=/etc/prometheus/prometheus.yaml --web.route-prefix=/ --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=30d --web.enable-lifecycle --web.enable-admin-api
+    ports: ["3001:9090"]
+    volumes:
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - ./data/prometheus:/prometheus
+    mem_limit: 512m
+    networks:
+      - dev-network
+      
+  opentelemetry-collector:
+    image: otel/opentelemetry-collector:0.55.0
+    container_name: opentelemetry-collector
+    restart: unless-stopped
+    ports: ["9464:9464", "55680:55680", "55681:55681"]
+    command: --config=/conf/otel-collector.config.yaml
+    volumes:
+      - ./config/otel-collector.yaml:/conf/otel-collector.config.yaml
+    networks:
+      - dev-network
+      
+  # Tracing service
+  zipkin-server:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin-server
+    hostname: zipkin-server
+    ports:
+      - "9411:9411"
+    restart: 'unless-stopped'
+    networks:
+      - dev-network
+      
+   vector:
+    image: timberio/vector:latest-alpine
+    container_name: vector-telemetry-stacks
+    restart: unless-stopped
+    ports: ["8383:8383", "8686:8686", "9160:9160", "4545:4545/udp"]
+    volumes:
+      - ./config/vector.toml:/etc/vector/vector.toml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/logs:/logs
+    depends_on: 
+      - loki
+      - prometheus
+    mem_limit: 100m
+    networks:
+      - dev-network
+    # environment:
+      # - VECTOR_LOG=debug
+
+networks:
+  dev-network:
+    external: true
